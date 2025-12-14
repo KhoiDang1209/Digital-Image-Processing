@@ -1,0 +1,61 @@
+preprocessing:
+  frames_per_second: 5
+  max_frames_per_video: 37
+  trim_start_portion: 0.15
+  trim_end_portion: 0.85
+
+model:
+  model_type: 'lstm' # Options: 'lstm', 'transformer'
+  num_classes: 2
+  hidden_dim: 256
+  num_layers: 2
+  dropout: 0.3
+
+data:
+  dataset_name: 'sign_language_binary'
+  data_root: './data'
+  train_split: 0.8
+  val_split: 0.1
+  test_split: 0.1
+  num_workers: 0
+  pin_memory: true
+
+augmentation:
+  use_augmentation: false
+  random_crop: false
+  random_horizontal_flip: false
+  color_jitter: false
+  rotation_degrees: 0
+  brightness: 0.0
+  contrast: 0.0
+
+training:
+  batch_size: 32
+  epochs: 50
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  optimizer: 'adam'
+  scheduler: 'cosine'
+  scheduler_patience: 5
+  scheduler_step_size: 10
+  scheduler_gamma: 0.1
+  gradient_clip: 1.0
+  early_stopping_patience: 10
+
+device:
+  use_cuda: true
+  device_id: 0
+  mixed_precision: false
+  benchmark: true
+
+logging:
+  log_dir: './logs'
+  checkpoint_dir: './checkpoints'
+  results_dir: './results'
+  save_best_only: true
+  checkpoint_interval: 5
+  log_interval: 10
+  visualize_predictions: false
+
+experiment_name: 'sl_binary_classifier'
+seed: 42
