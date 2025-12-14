@@ -372,7 +372,6 @@ class SLDetectorConfig(BaseModel):
     def create_directories(self) -> None:
         """Create all necessary directories for the experiment."""
         directories = [
-            self.preprocessing.output_img_dir,
             self.logging.log_dir,
             self.logging.checkpoint_dir,
             self.logging.results_dir,
