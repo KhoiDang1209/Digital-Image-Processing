@@ -292,21 +292,43 @@ class WordLevelDetector:
 def draw_landmarks(frame, hand_landmarks):
     """
     Draw hand landmarks on frame for visualization.
+    Supports both Hands and Holistic results.
     
     Args:
         frame: BGR image frame
-        hand_landmarks: MediaPipe hand landmarks results
+        hand_landmarks: MediaPipe hand/holistic landmarks results
     """
-    if hand_landmarks.multi_hand_landmarks:
-        mp_drawing = mp.solutions.drawing_utils
-        
+    mp_drawing = mp.solutions.drawing_utils
+    mp_drawing_styles = mp.solutions.drawing_styles
+    
+    # Handle both hand-only and holistic results
+    if hasattr(hand_landmarks, 'multi_hand_landmarks') and hand_landmarks.multi_hand_landmarks:
+        # Hands mode
         for hand_landmarks_set in hand_landmarks.multi_hand_landmarks:
             mp_drawing.draw_landmarks(
                 frame,
                 hand_landmarks_set,
                 mp.solutions.hands.HAND_CONNECTIONS,
-                mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2),
-                mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2)
+                mp_drawing_styles.get_default_hand_landmarks_style(),
+                mp_drawing_styles.get_default_hand_connections_style()
+            )
+    elif hasattr(hand_landmarks, 'left_hand_landmarks') or hasattr(hand_landmarks, 'right_hand_landmarks'):
+        # Holistic mode
+        if hand_landmarks.right_hand_landmarks:
+            mp_drawing.draw_landmarks(
+                frame,
+                hand_landmarks.right_hand_landmarks,
+                mp.solutions.holistic.HAND_CONNECTIONS,
+                mp_drawing_styles.get_default_hand_landmarks_style(),
+                mp_drawing_styles.get_default_hand_connections_style()
+            )
+        if hand_landmarks.left_hand_landmarks:
+            mp_drawing.draw_landmarks(
+                frame,
+                hand_landmarks.left_hand_landmarks,
+                mp.solutions.holistic.HAND_CONNECTIONS,
+                mp_drawing_styles.get_default_hand_landmarks_style(),
+                mp_drawing_styles.get_default_hand_connections_style()
             )
 
 
@@ -399,7 +421,7 @@ def save_clip(frames, out_dir, fps, filename_stub):
 def main():
     parser = argparse.ArgumentParser(description='Real-time Sign Language Detection with Word Classification')
     parser.add_argument('--checkpoint', type=str,
-                       default='sign_language_detection_module/checkpoints/sl_binary_classifier_epoch10.pth',
+                       default='sign_language_detection_module/checkpoints/val_acc_main_metric/sl_binary_classifier_epoch35.pth',
                        help='Path to sign detection model checkpoint')
     
     # Word classification model options
@@ -426,10 +448,10 @@ def main():
                        help='Maximum number of hands to detect (default: 2)')
     parser.add_argument('--smoothing-window', type=int, default=5,
                        help='Number of predictions to smooth over (legacy, unused with EMA)')
-    parser.add_argument('--hysteresis-upper', type=float, default=0.50,
-                       help='Upper threshold for switching to YES (default: 0.50)')
-    parser.add_argument('--hysteresis-lower', type=float, default=0.40,
-                       help='Lower threshold for switching to NO (default: 0.40)')
+    parser.add_argument('--hysteresis-upper', type=float, default=0.70,
+                       help='Upper threshold for switching to YES (default: 0.80)')
+    parser.add_argument('--hysteresis-lower', type=float, default=0.60,
+                       help='Lower threshold for switching to NO (default: 0.70)')
     parser.add_argument('--ema-up', type=float, default=0.6,
                        help='EMA alpha when confidence rises (higher = faster rise)')
     parser.add_argument('--ema-down', type=float, default=0.3,
@@ -540,9 +562,9 @@ def main():
     buffer_mode = 'holistic' if (args.word_model_type == 'lstm' or args.mode in ['combined', 'sign-only']) else 'hands'
     # Buffer length: 20 for LSTM, 37 for sign detector/GRU
     if args.mode == 'word-only':
-        buffer_seq_len = 20 if args.word_model_type == 'lstm' else 37
+        buffer_seq_len = 20 if args.word_model_type == 'lstm' else 20
     else:
-        buffer_seq_len = 37  # sign-only or combined use sign detector's length
+        buffer_seq_len = 20  # sign-only or combined use sign detector's length
     
     frame_buffer = FrameBuffer(
         seq_len=buffer_seq_len, 
@@ -697,6 +719,9 @@ def main():
             
             # Minimal info overlay
             draw_info(frame, buffer_status)
+            
+            # Draw hand landmarks
+            draw_landmarks(frame, hand_landmarks)
             
             # Draw bounding box + label tied to gesture
             label = None
